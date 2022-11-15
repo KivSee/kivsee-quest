@@ -1,74 +1,26 @@
-/*
- * --------------------------------------------------------------------------------------------------------------------
- * Example sketch/program showing how to read new NUID from a PICC to serial.
- * --------------------------------------------------------------------------------------------------------------------
- * This is a MFRC522 library example; for further details and other examples see: https://github.com/miguelbalboa/rfid
- * 
- * Example sketch/program showing how to the read data from a PICC (that is: a RFID Tag or Card) using a MFRC522 based RFID
- * Reader on the Arduino SPI interface.
- * 
- * When the Arduino and the MFRC522 module are connected (see the pin layout below), load this sketch into Arduino IDE
- * then verify/compile and upload it. To see the output: use Tools, Serial Monitor of the IDE (hit Ctrl+Shft+M). When
- * you present a PICC (that is: a RFID Tag or Card) at reading distance of the MFRC522 Reader/PCD, the serial output
- * will show the type, and the NUID if a new card has been detected. Note: you may see "Timeout in communication" messages
- * when removing the PICC from reading distance too early.
- * 
- * @license Released into the public domain.
- * 
- * Typical pin layout used:
- * -----------------------------------------------------------------------------------------
- *             MFRC522      Arduino       Arduino   Arduino    Arduino          Arduino
- *             Reader/PCD   Uno/101       Mega      Nano v3    Leonardo/Micro   Pro Micro
- * Signal      Pin          Pin           Pin       Pin        Pin              Pin
- * -----------------------------------------------------------------------------------------
- * RST/Reset   RST          9             5         D9         RESET/ICSP-5     RST
- * SPI SS      SDA(SS)      10            53        D10        10               10
- * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
- * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
- * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
- */
-
 #include <SPI.h>
 #include <MFRC522.h>
+#include "SoftwareSerial.h"
+#include "DFRobotDFPlayerMini.h"
 
+// logic
+#define MY_LEVEL 1
+
+// RFID
 #define SS_PIN 10
 #define RST_PIN 9
- 
 MFRC522 rfid(SS_PIN, RST_PIN); // Instance of the class
-
 MFRC522::MIFARE_Key key; 
+// Init array that will store new NUID 
+byte nuidPICC[4];
+byte blockAddr      = 4;
+byte buffer[18];
+byte size = sizeof(buffer);
+byte trailerBlock   = 7;
 
-/**
- * Helper routine to dump a byte array as hex values to Serial. 
- */
-// void printHex(byte *buffer, byte bufferSize) {
-//   for (byte i = 0; i < bufferSize; i++) {
-//     Serial.print(buffer[i] < 0x10 ? " 0" : " ");
-//     Serial.print(buffer[i], HEX);
-//   }
-// }
-
-/**
- * Helper routine to dump a byte array as dec values to Serial.
- */
-// void printDec(byte *buffer, byte bufferSize) {
-//   for (byte i = 0; i < bufferSize; i++) {
-//     Serial.print(buffer[i] < 0x10 ? " 0" : " ");
-//     Serial.print(buffer[i], DEC);
-//   }
-// }
-
-bool authenticate(byte trailerBlock, MFRC522::MIFARE_Key key) {
-    // Authenticate using key A
-    // Serial.println(F("Authenticating using key A..."));
-    MFRC522::StatusCode status = (MFRC522::StatusCode) rfid.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailerBlock, &key, &(rfid.uid));
-    if (status != MFRC522::STATUS_OK) {
-        Serial.print(F("PCD_Authenticate() failed: "));
-        Serial.println(rfid.GetStatusCodeName(status));
-        return false;
-    }
-    return true;
-}
+// sound
+SoftwareSerial mySoftwareSerial(2, 3); // RX, TX
+DFRobotDFPlayerMini myDFPlayer;
 
 bool write_and_verify(byte blockAddr, byte dataBlock[], byte buffer[], byte size) {
     MFRC522::StatusCode status;
@@ -118,28 +70,33 @@ bool write_and_verify(byte blockAddr, byte dataBlock[], byte buffer[], byte size
     }
 }
 
-
-// Init array that will store new NUID 
-byte nuidPICC[4];
-
-byte blockAddr      = 4;
-byte buffer[18];
-byte size = sizeof(buffer);
-byte trailerBlock   = 7;
-
-#define MY_LEVEL 1
-
 void setup() { 
+
   Serial.begin(115200);
+
+  // RFID
   SPI.begin(); // Init SPI bus
   rfid.PCD_Init(); // Init MFRC522 
-
   for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
 
-  Serial.println(F("This code scan the MIFARE Classsic NUID."));
-  Serial.print(F("Using the following key:"));
+  // Sound
+  Serial.println(F("DFRobot DFPlayer Mini Demo"));
+  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
+  
+  if (!myDFPlayer.begin(mySoftwareSerial)) {  //Use softwareSerial to communicate with mp3.
+    Serial.println(F("Unable to begin:"));
+    Serial.println(F("1.Please recheck the connection!"));
+    Serial.println(F("2.Please insert the SD card!"));
+    while(true){
+      delay(0); // Code to compatible with ESP8266 watch dog.
+    }
+  }
+  Serial.println(F("DFPlayer Mini online."));
+  
+  myDFPlayer.volume(10);  //Set volume value. From 0 to 30
+  myDFPlayer.play(1);  //Play the first mp3  
 }
  
 void loop() {
