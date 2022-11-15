@@ -85,6 +85,7 @@ void setup() {
   Serial.println(F("DFRobot DFPlayer Mini Demo"));
   Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
   
+  mySoftwareSerial.begin(9600);
   if (!myDFPlayer.begin(mySoftwareSerial)) {  //Use softwareSerial to communicate with mp3.
     Serial.println(F("Unable to begin:"));
     Serial.println(F("1.Please recheck the connection!"));
@@ -96,7 +97,6 @@ void setup() {
   Serial.println(F("DFPlayer Mini online."));
   
   myDFPlayer.volume(10);  //Set volume value. From 0 to 30
-  myDFPlayer.play(1);  //Play the first mp3  
 }
  
 void loop() {
@@ -147,18 +147,22 @@ void loop() {
     bool write_success = write_and_verify(blockAddr, dataBlock, buffer, size);
     if(!write_success) {
       // play - cound not write. try again
+      myDFPlayer.play(4);
       Serial.println(F("write failed"));
       return;
     } else {
       // play audio good
+      myDFPlayer.play(1);  //Play the first mp3
       Serial.println("playing sound - good");
     }
   } else {
 
     if(level < (MY_LEVEL - 1)) {
       // play sound - go back
+      myDFPlayer.play(2);
       Serial.println("playing sound - bad, you missed a station");
     } else {
+      myDFPlayer.play(3);
       Serial.println("playing sound - bad, already visited");
       // play you were here before - no need to come back
     }
