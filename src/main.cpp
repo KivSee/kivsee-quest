@@ -85,13 +85,13 @@ void loop() {
     return;
 
   // perform authentication to open communication
-  bool auth_success = authenticate(trailerBlock, &key, &mfrc522);
+  bool auth_success = authenticate(trailerBlock, &key, mfrc522);
   if (!auth_success) {
     return;
   }
 
   // read the tag to get coded information to buffer
-  bool read_success = read_block(blockAddr, buffer, size, &mfrc522);
+  bool read_success = read_block(blockAddr, buffer, size, mfrc522);
   if (!read_success) {
     // Serial.println(F("Initial read failed, closing connection"));
     // Halt PICC
@@ -118,7 +118,7 @@ void loop() {
       0x00, 0x00, 0x00, 0x02  // byte 15 for event track bit[0] = burnerot2018, bit[1] = contra2019
     };
 
-    bool write_success = write_and_verify(blockAddr, dataBlock, buffer, size, &mfrc522);
+    bool write_success = write_and_verify(blockAddr, dataBlock, buffer, size, mfrc522);
     if(!write_success) {
       // play - could not write. try again
       myDFPlayer.play(4);
