@@ -7,6 +7,7 @@
 
 // logic
 #define MY_LEVEL 1
+#define EVENT_ID_BIT 3 // burnerot 2022 is bit 3, count starts at 0
 
 // RFID
 #define SS_PIN 10
@@ -80,13 +81,17 @@ void loop() {
   if ( ! mfrc522.PICC_IsNewCardPresent())
     return;
 
-  // Verify if the NUID has been readed
+  // Verify if the NUID has been read
   if ( ! mfrc522.PICC_ReadCardSerial())
     return;
 
   // perform authentication to open communication
   bool auth_success = authenticate(trailerBlock, &key, mfrc522);
   if (!auth_success) {
+    // Halt PICC
+    mfrc522.PICC_HaltA();
+    // Stop encryption on PCD
+    mfrc522.PCD_StopCrypto1();
     return;
   }
 
@@ -101,21 +106,25 @@ void loop() {
     return;
   }
 
-  byte level = *(buffer + 1);
+  byte color = *(buffer + 0); // byte 0 for color encoding
+  byte level = *(buffer + 1); // byte 1 for level encoding
   if(level == 0xff) {
     level = 0;
   }
+  byte eventTrack = *(buffer + 15); // byte 15 for event track encoding bit[0] = burnerot2018, bit[1] = contra2019, bit[2] = midburn2022, bit[3] = burnerot2022
+  Serial.print("Current chip color: "); Serial.println(color);
   Serial.print("Current chip level: "); Serial.println(level);
+  Serial.print("Current chip eventTrack: "); Serial.println(eventTrack);
 
   if(level == MY_LEVEL - 1) {
     // happy path
-    
+    eventTrack |= (1 << EVENT_ID_BIT);
     buffer[1] = MY_LEVEL;
     byte dataBlock[] = {
-      0x04, MY_LEVEL, 0x00, 0x00, //  byte 1 for color encoding
+      color, MY_LEVEL, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 
       0x00, 0x00, 0x00, 0x00, 
-      0x00, 0x00, 0x00, 0x02  // byte 15 for event track bit[0] = burnerot2018, bit[1] = contra2019
+      0x00, 0x00, 0x00, eventTrack  // byte 15 for event track 
     };
 
     bool write_success = write_and_verify(blockAddr, dataBlock, buffer, size, mfrc522);
