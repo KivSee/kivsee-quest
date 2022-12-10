@@ -23,9 +23,13 @@ byte size = sizeof(buffer);
 byte trailerBlock   = 7;
 
 // sound
-SoftwareSerial mySoftwareSerial(2, 3); // RX, TX
+#define RX_PIN 2
+#define TX_PIN 3
+#define BUSY_PIN 5
+#define VOLUME 25
+#define DFPLAYER_BUSY LOW
+SoftwareSerial mySoftwareSerial(RX_PIN, TX_PIN); // RX, TX
 DFRobotDFPlayerMini myDFPlayer;
-#define VOLUME 15
 
 // LEDs
 #define DATA_PIN 7
@@ -47,12 +51,11 @@ void setup() {
   for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
-  Serial.print("Station level is: "); Serial.println(MY_LEVEL);
+  Serial.print(F("Station level is: ")); Serial.println(MY_LEVEL);
 
   // Sound
-  Serial.println(F("DFRobot DFPlayer Mini Demo"));
+  pinMode(BUSY_PIN, INPUT);
   Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
-  
   mySoftwareSerial.begin(9600);
   if (!myDFPlayer.begin(mySoftwareSerial)) {  //Use softwareSerial to communicate with mp3.
     Serial.println(F("Unable to begin DFPlayer Mini:"));
@@ -72,7 +75,7 @@ void setup() {
 void loop() {
 
   // clearing LEDs if the sound is not playing
-  if (myDFPlayer.readState() != Busy) {
+  if (digitalRead(BUSY_PIN) != DFPLAYER_BUSY) {
     FastLED.clear();
     FastLED.show();
   };
@@ -107,14 +110,20 @@ void loop() {
   }
 
   byte color = *(buffer + 0); // byte 0 for color encoding
+  if(color == 0xff) {
+    color = 0x4; // set uninitialized color to 0x4
+  }
   byte level = *(buffer + 1); // byte 1 for level encoding
   if(level == 0xff) {
     level = 0;
   }
   byte eventTrack = *(buffer + 15); // byte 15 for event track encoding bit[0] = burnerot2018, bit[1] = contra2019, bit[2] = midburn2022, bit[3] = burnerot2022
-  Serial.print("Current chip color: "); Serial.println(color);
-  Serial.print("Current chip level: "); Serial.println(level);
-  Serial.print("Current chip eventTrack: "); Serial.println(eventTrack);
+  if(eventTrack == 0xff) {
+    eventTrack = 0x8; // set uninitialized eventTrack to 0x8, bit[3] = burnerot2022
+  }
+  Serial.print(F("Current chip color: ")); Serial.println(color);
+  Serial.print(F("Current chip level: ")); Serial.println(level);
+  Serial.print(F("Current chip eventTrack: ")); Serial.println(eventTrack);
 
   if(level == MY_LEVEL - 1) {
     // happy path
@@ -136,17 +145,16 @@ void loop() {
     } else {
       // play audio good
       myDFPlayer.play(1);  //Play the first mp3
-      Serial.println("playing sound - good");
+      Serial.println(F("playing sound - good"));
     }
   } else {
-
     if(level < (MY_LEVEL - 1)) {
       // play sound - go back
       myDFPlayer.play(2);
-      Serial.println("playing sound - bad, you missed a station");
+      Serial.println(F("playing sound - bad, you missed a station"));
     } else {
       myDFPlayer.play(3);
-      Serial.println("playing sound - bad, already visited");
+      Serial.println(F("playing sound - bad, already visited"));
       // play you were here before - no need to come back
     }
   }
